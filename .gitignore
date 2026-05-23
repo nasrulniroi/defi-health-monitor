@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+.venv/
+env/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.egg-info/
+*.so
+*.o
+*.exe
+
+# Go
+vendor/
+*.test
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+.env.production
+.env.staging
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+lcov.info
+
+# Docker
+.docker/
+
+# Temporary
+tmp/
+temp/
+.cache/

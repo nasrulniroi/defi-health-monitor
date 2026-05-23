@@ -1,0 +1,14 @@
+weights:
+  tvl_stability: 0.30
+  apy_sustainability: 0.20
+  contract_security: 0.25
+  governance_distribution: 0.15
+  liquidity_depth: 0.10
+
+cache_ttl: 60
+max_protocols: 500
+
+risk_thresholds:
+  critical: 25
+  high: 50
+  medium: 75

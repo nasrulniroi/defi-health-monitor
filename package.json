@@ -1,0 +1,43 @@
+{
+  "name": "defi-health-monitor",
+  "version": "1.0.0",
+  "description": "Real-time DeFi protocol health monitoring with multi-chain risk scoring",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:engine\" \"npm run dev:scanner\" \"npm run dev:web\"",
+    "dev:web": "cd src/web && npm run dev",
+    "dev:engine": "cd src/engine && python main.py",
+    "dev:scanner": "cd src/scanner && go run main.go scan",
+    "build": "npm run build:web && npm run build:scanner",
+    "build:web": "cd src/web && npm run build",
+    "build:scanner": "cd src/scanner && go build -o ../../bin/scanner main.go",
+    "test": "npm run test:engine && npm run test:scanner && npm run test:web",
+    "test:engine": "cd src/engine && python -m pytest tests/engine/ -v",
+    "test:scanner": "cd src/scanner && go test ./...",
+    "test:web": "cd src/web && npx vitest run",
+    "lint": "npm run lint:web && npm run lint:engine",
+    "lint:web": "cd src/web && npm run lint",
+    "lint:engine": "cd src/engine && ruff check .",
+    "db:init": "cd src/db && psql -f schema.sql",
+    "db:migrate": "cd src/db && for f in migrations/*.sql; do psql -f \"$f\"; done",
+    "db:seed": "cd src/db && psql -f seed.sql"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.11.0",
+    "go": ">=1.21.0"
+  },
+  "keywords": [
+    "defi",
+    "health-monitor",
+    "risk-scoring",
+    "blockchain",
+    "multi-chain",
+    "tvl",
+    "apy"
+  ],
+  "license": "MIT"
+}

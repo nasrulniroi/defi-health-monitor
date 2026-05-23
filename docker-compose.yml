@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: defi-monitor-db
+    environment:
+      POSTGRES_DB: defi_monitor
+      POSTGRES_USER: defi_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-defi_secure_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - src/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - src/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U defi_user -d defi_monitor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: defi-monitor-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  engine:
+    build:
+      context: .
+      dockerfile: src/engine/Dockerfile
+    container_name: defi-monitor-engine
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://defi_user:${DB_PASSWORD:-defi_secure_pass}@postgres:5432/defi_monitor
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scanner:
+    build:
+      context: .
+      dockerfile: src/scanner/Dockerfile
+    container_name: defi-monitor-scanner
+    environment:
+      DATABASE_URL: postgresql://defi_user:${DB_PASSWORD:-defi_secure_pass}@postgres:5432/defi_monitor
+      REDIS_URL: redis://redis:6379
+      SCANNER_INTERVAL: "300"
+      SCANNER_CHAINS: "ethereum,arbitrum,polygon,bsc,optimism,avalanche,solana,base"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: src/web/Dockerfile
+    container_name: defi-monitor-web
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://engine:8000
+      DATABASE_URL: postgresql://defi_user:${DB_PASSWORD:-defi_secure_pass}@postgres:5432/defi_monitor
+    depends_on:
+      engine:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
