@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeFi Protocol Health Monitor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f172a; --card: #1e293b; --border: #334155; --text: #e2e8f0;
+            --muted: #94a3b8; --primary: #3b82f6; --green: #4ade80; --yellow: #facc15;
+            --orange: #fb923c; --red: #ef4444; --purple: #a78bfa;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; background: var(--card); border-right: 1px solid var(--border); padding: 20px; position: fixed; height: 100vh; overflow-y: auto; }
+        .sidebar h1 { font-size: 20px; color: var(--primary); margin-bottom: 30px; }
+        .sidebar nav a { display: block; padding: 10px 12px; border-radius: 6px; color: var(--muted); text-decoration: none; margin-bottom: 4px; transition: all 0.2s; }
+        .sidebar nav a:hover, .sidebar nav a.active { background: var(--border); color: var(--text); }
+        .sidebar .formula { margin-top: 30px; padding: 12px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; font-size: 11px; color: var(--muted); }
+        .sidebar .formula code { color: var(--primary); font-size: 12px; }
+        .main { margin-left: 240px; flex: 1; padding: 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header h2 { font-size: 28px; font-weight: 700; }
+        .header .count { color: var(--muted); font-size: 14px; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .stat .label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+        .stat .value { font-size: 28px; font-weight: 700; }
+        .stat.low .value { color: var(--green); }
+        .stat.medium .value { color: var(--yellow); }
+        .stat.high .value { color: var(--orange); }
+        .stat.critical .value { color: var(--red); }
+        .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+        .panel h3 { font-size: 16px; margin-bottom: 16px; }
+        .protocols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .proto-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; transition: border-color 0.2s; cursor: pointer; }
+        .proto-card:hover { border-color: var(--primary); }
+        .proto-card .top { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .proto-card .name { font-weight: 600; font-size: 14px; }
+        .proto-card .score { font-weight: 600; font-size: 14px; }
+        .proto-card .meta { font-size: 12px; color: var(--muted); }
+        .proto-card .meta span { display: block; margin: 2px 0; }
+        .proto-card .bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+        .proto-card .bar .fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+        .gauge { text-align: center; padding: 20px; }
+        .gauge svg { width: 180px; height: 110px; }
+        .gauge .label { font-size: 13px; color: var(--muted); margin-top: 10px; }
+        .alert-bar { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 14px; margin-bottom: 24px; }
+        .alert-bar .title { color: var(--red); font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+        .alert-bar .item { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin: 4px 0; }
+        .chart-area { height: 280px; display: flex; align-items: flex-end; gap: 4px; padding: 20px 0; }
+        .chart-bar { flex: 1; background: var(--primary); border-radius: 4px 4px 0 0; min-height: 8px; transition: height 0.5s; position: relative; }
+        .chart-bar:hover { opacity: 0.8; }
+        .chart-bar .tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; margin-bottom: 4px; }
+        .chart-bar:hover .tooltip { display: block; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .tab { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: none; background: var(--border); color: var(--muted); transition: all 0.2s; }
+        .tab.active { background: var(--primary); color: white; }
+        .pie-chart { width: 200px; height: 200px; margin: 0 auto; }
+        .legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; margin-top: 40px; }
+        .risk-low { color: var(--green); }
+        .risk-medium { color: var(--yellow); }
+        .risk-high { color: var(--orange); }
+        .risk-critical { color: var(--red); }
+        @media (max-width: 1024px) { .stats { grid-template-columns: repeat(2, 1fr); } .protocols { grid-template-columns: repeat(2, 1fr); } .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h1>🔗 DeFi Health</h1>
+            <nav>
+                <a href="#" class="active">Dashboard</a>
+                <a href="#protocols">Protocols</a>
+                <a href="#alerts">Alerts</a>
+                <a href="#analytics">Analytics</a>
+            </nav>
+            <div class="formula">
+                <strong>Risk Formula</strong><br><br>
+                <code>PHS = 100 × (w₁·TVL + w₂·APY + w₃·Security + w₄·Gov + w₅·Liquidity)</code><br><br>
+                w₁=0.30 w₂=0.20 w₃=0.25 w₄=0.15 w₅=0.10
+            </div>
+            <div style="margin-top:20px;font-size:11px;color:var(--muted);">
+                <strong>Supported Chains</strong><br>
+                Ethereum · Arbitrum · Polygon<br>
+                BSC · Avalanche · Optimism<br>
+                Fantom · Solana
+            </div>
+        </aside>
+        <main class="main">
+            <div id="dashboard">
+                <div class="header">
+                    <h2>Protocol Health Dashboard</h2>
+                    <span class="count" id="protocol-count">Loading...</span>
+                </div>
+                <div id="alert-bar"></div>
+                <div class="stats" id="stats"></div>
+                <div class="grid">
+                    <div class="panel">
+                        <h3>TVL Distribution (Top 15)</h3>
+                        <div class="chart-area" id="tvl-chart"></div>
+                    </div>
+                    <div class="panel">
+                        <h3>Health Overview</h3>
+                        <div class="gauge" id="gauge"></div>
+                    </div>
+                </div>
+                <h3 style="margin-bottom:16px">Top Protocols</h3>
+                <div class="protocols" id="protocols"></div>
+            </div>
+            <div class="footer">DeFi Protocol Health Monitor — Real-time risk intelligence for DeFi protocols</div>
+        </main>
+    </div>
+    <script>
+        const API_BASE = "https://api.llama.fi";
+        const WEIGHTS = { tvl: 0.30, apy: 0.20, security: 0.25, gov: 0.15, liq: 0.10 };
+
+        async function fetchProtocols() {
+            const res = await fetch(`${API_BASE}/protocols`);
+            const data = await res.json();
+            return data.filter(p => p.tvl > 1000000).sort((a, b) => b.tvl - a.tvl).slice(0, 50);
+        }
+
+        function calcScore(p) {
+            const tvlScore = p.tvl > 1e10 ? 1.0 : p.tvl > 1e9 ? 0.8 : p.tvl > 1e8 ? 0.6 : p.tvl > 1e7 ? 0.4 : 0.2;
+            const apy = p.apy || p.apyMean30d || 0;
+            const apyScore = apy > 1000 ? 0.1 : apy > 200 ? 0.3 : apy > 50 ? 0.5 : apy > 0 ? 0.8 : 0.5;
+            const audits = p.audits || 0;
+            const secScore = audits >= 3 ? 1.0 : audits >= 2 ? 0.8 : audits >= 1 ? 0.6 : 0.3;
+            const govScore = p.governanceID ? 0.7 : 0.3;
+            const vol = p.volume || p.dailyVolume || 0;
+            const liqScore = p.tvl > 0 ? Math.min(1, (vol / p.tvl) * 2) : 0.1;
+            const composite = WEIGHTS.tvl * tvlScore + WEIGHTS.apy * apyScore + WEIGHTS.security * secScore + WEIGHTS.gov * govScore + WEIGHTS.liq * liqScore;
+            return Math.round(composite * 1000) / 10;
+        }
+
+        function riskLevel(score) {
+            if (score >= 75) return "low";
+            if (score >= 50) return "medium";
+            if (score >= 25) return "high";
+            return "critical";
+        }
+
+        function riskColor(level) {
+            return { low: "#4ade80", medium: "#facc15", high: "#fb923c", critical: "#ef4444" }[level] || "#94a3b8";
+        }
+
+        function fmtTVL(v) {
+            if (v >= 1e12) return `$${(v/1e12).toFixed(2)}T`;
+            if (v >= 1e9) return `$${(v/1e9).toFixed(2)}B`;
+            if (v >= 1e6) return `$${(v/1e6).toFixed(2)}M`;
+            return `$${v.toFixed(0)}`;
+        }
+
+        async function main() {
+            const protocols = await fetchProtocols();
+            const scored = protocols.map(p => ({ ...p, healthScore: calcScore(p), risk: riskLevel(calcScore(p)) }));
+
+            document.getElementById("protocol-count").textContent = `${scored.length} protocols monitored`;
+
+            const dist = { low: 0, medium: 0, high: 0, critical: 0 };
+            scored.forEach(p => dist[p.risk]++);
+            document.getElementById("stats").innerHTML = ["low", "medium", "high", "critical"].map(l =>
+                `<div class="stat ${l}"><div class="label">${l.charAt(0).toUpperCase() + l.slice(1)} Risk</div><div class="value">${dist[l]}</div></div>`
+            ).join("");
+
+            const criticals = scored.filter(p => p.risk === "critical");
+            if (criticals.length > 0) {
+                document.getElementById("alert-bar").innerHTML = `<div class="alert-bar"><div class="title">⚠ Critical Risk Alert (${criticals.length})</div>${criticals.slice(0, 3).map(p => `<div class="item"><span>${p.name}</span><span>Score: ${p.healthScore} | TVL: ${fmtTVL(p.tvl)}</span></div>`).join("")}</div>`;
+            }
+
+            const avgScore = scored.reduce((a, b) => a + b.healthScore, 0) / scored.length;
+            const color = riskColor(riskLevel(avgScore));
+            const dashLen = (avgScore / 100) * 251.3;
+            const label = avgScore >= 75 ? "Healthy" : avgScore >= 50 ? "Moderate" : avgScore >= 25 ? "At Risk" : "Critical";
+            document.getElementById("gauge").innerHTML = `<svg viewBox="0 0 200 120"><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#334155" stroke-width="12" stroke-linecap="round"/><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${dashLen} 251.3"/><text x="100" y="88" text-anchor="middle" font-size="28" font-weight="700" fill="${color}">${avgScore.toFixed(1)}</text><text x="100" y="108" text-anchor="middle" font-size="12" fill="#94a3b8">${label}</text></svg><div class="label">Average Protocol Health Score</div>`;
+
+            const maxTVL = Math.max(...scored.slice(0, 15).map(p => p.tvl));
+            document.getElementById("tvl-chart").innerHTML = scored.slice(0, 15).map(p => {
+                const h = Math.max(8, (p.tvl / maxTVL) * 240);
+                return `<div class="chart-bar" style="height:${h}px"><div class="tooltip">${p.name}: ${fmtTVL(p.tvl)}</div></div>`;
+            }).join("");
+
+            document.getElementById("protocols").innerHTML = scored.slice(0, 12).map(p => `<div class="proto-card"><div class="top"><span class="name">${p.name}</span><span class="score risk-${p.risk}">${p.healthScore}</span></div><div class="meta"><span>TVL: ${fmtTVL(p.tvl)}</span><span>Chain: ${p.chain || "Multi"}</span><span>Category: ${p.category || "N/A"}</span></div><div class="bar"><div class="fill" style="width:${p.healthScore}%;background:${riskColor(p.risk)}"></div></div></div>`).join("");
+        }
+
+        main().catch(console.error);
+    </script>
+</body>
+</html>
