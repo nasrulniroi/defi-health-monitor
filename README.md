@@ -2,6 +2,10 @@
 
 > Real-time risk intelligence platform for DeFi protocols — monitors 50+ protocols across 12+ blockchain networks, computes composite health scores using a weighted multi-factor model, and surfaces critical risk alerts.
 
+### 🔴 Live Demo: **https://nasrulniroi.github.io/defi-health-monitor/**
+
+---
+
 ## Overview
 
 DeFi Protocol Health Monitor is a full-stack system that continuously fetches on-chain data from DeFiLlama, CoinGecko, and other public APIs, then computes a **Protocol Health Score (PHS)** for each protocol using a formal composite risk formula. The system detects anomalies, tracks TVL migrations, monitors APY deviations, and alerts on critical risk events.
